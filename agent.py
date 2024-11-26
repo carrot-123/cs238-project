@@ -4,6 +4,8 @@ import pyautogui
 import pyperclip
 import csv
 import re
+import random
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -162,10 +164,168 @@ item_dict = {
     "Wildcard": 148,
     "Wine": 149,
     "Witch": 150,
-    "Wolf": 151
+    "Wolf": 151,
+    "Skip": 152
 }
-
-
+# common + 0
+# uncommon + 1
+# rare + 2
+# very rare + 3
+coin_dict = {
+    "Amethyst": 3,
+    "Anchor": 1,
+    "Apple": 5,
+    "Banana": 1,
+    "Banana Peel": 1,
+    "Bar of Soap": 2,
+    "Bartender": 5,
+    "Bear": 3,
+    "Beastmaster": 4,
+    "Bee": 1,
+    "Beehive": 5,
+    "Beer": 1,
+    "Big Ore": 3,
+    "Big Urn": 3,
+    "Billionaire": 2,
+    "Bounty Hunter": 1,
+    "Bronze Arrow": 1,
+    "Bubble": 2,
+    "Buffing Capsule": 1,
+    "Candy": 1,
+    "Card Shark": 5,
+    "Cat": 1,
+    "Cheese": 1,
+    "Chef": 4,
+    "Chemical Seven": 1,
+    "Cherry": 1,
+    "Chick": 2,
+    "Chicken": 4,
+    "Clubs": 2,
+    "Coal": 0,
+    "Coconut": 2,
+    "Coconut Half": 3,
+    "Coin": 1,
+    "Comedian": 5,
+    "Cow": 5,
+    "Crab": 1,
+    "Crow": 2,
+    "Cultist": 0,
+    "Dame": 4,
+    "Diamond": 8,
+    "Diamonds": 2,
+    "Diver": 4,
+    "Dog": 1,
+    "Dove": 4,
+    "Dud": 0,
+    "Dwarf": 1,
+    "Egg": 1,
+    "Eldritch Creature": 7,
+    "Emerald": 5,
+    "Empty": 0,
+    "Essence Capsule": -11,
+    "Farmer": 4,
+    "Five Sided Die": 4,
+    "Flower": 1,
+    "Frozen Fossil": 2,
+    "Gambler": 1,
+    "General Zaroff": 3,
+    "Geologist": 4,
+    "Golden Arrow": 3,
+    "Golden Egg": 6,
+    "Goldfish": 1,
+    "Golem": 1,
+    "Goose": 1,
+    "Hearts": 2,
+    "Hex of Destruction": 4,
+    "Hex of Draining": 4,
+    "Hex of Emptiness": 4,
+    "Hex of Hoarding": 4,
+    "Hex of Midas": 4,
+    "Hex of Tedium": 4,
+    "Hex of Thievery": 4,
+    "Highlander": 9,
+    "Honey": 5,
+    "Hooligan": 3,
+    "Hustling Capsule": -6,
+    "Item Capsule": 1,
+    "Jellyfish": 3,
+    "Joker": 5,
+    "Key": 1,
+    "King Midas": 3,
+    "Light Bulb": 1,
+    "Lockbox": 1,
+    "Lucky Capsule": 1,
+    "Magic Key": 4,
+    "Magpie": -1,
+    "Martini": 5,
+    "Matryoshka Doll": 1,
+    "Matryoshka Doll 2": 1,
+    "Matryoshka Doll 3": 2,
+    "Matryoshka Doll 4": 3,
+    "Matryoshka Doll 5": 4,
+    "Mega Chest": 6,
+    "Midas Bomb": 3,
+    "Milk": 1,
+    "Mine": 6,
+    "Miner": 1,
+    "Missing": 0,
+    "Monkey": 1,
+    "Moon": 5,
+    "Mouse": 1,
+    "Mrs Fruit": 4,
+    "Ninja": 3,
+    "Omelette": 5,
+    "Orange": 3,
+    "Ore": 1,
+    "Owl": 1,
+    "Oyster": 1,
+    "Peach": 3,
+    "Pear": 3,
+    "Pearl": 1,
+    "Pirate": 5,
+    "Pinata": 2,
+    "Present": 0,
+    "Pufferfish": 3,
+    "Rabbit": 2,
+    "Rabbit Fluff": 3,
+    "Rain": 3,
+    "Removal Capsule": 1,
+    "Reroll Capsule": 1,
+    "Robin Hood": -1,
+    "Ruby": 5,
+    "Safe": 2,
+    "Sand Dollar": 3,
+    "Sapphire": 3,
+    "Seed": 1,
+    "Shiny Pebble": 1,
+    "Silver Arrow": 2,
+    "Sloth": 1,
+    "Snail": 0,
+    "Spades": 2,
+    "Spirit": 8,
+    "Strawberry": 5,
+    "Sun": 5,
+    "Target": 3,
+    "Tedium Capsule": 1,
+    "Thief": 0,
+    "Three Sided Die": 2,
+    "Time Capsule": 1,
+    "Toddler": 1,
+    "Tomb": 5,
+    "Treasure Chest": 4,
+    "Turtle": 0,
+    "Urn": 1,
+    "Void Creature": 1,
+    "Void Fruit": 1,
+    "Void Stone": 1,
+    "Watermelon": 7,
+    "Wealthy Capsule": 1,
+    "Wildcard": 3,
+    "Wine": 3,
+    "Witch": 4,
+    "Wolf": 3,
+    "Skip": 0
+}
 
 
 class DQN(nn.Module):
@@ -191,6 +351,16 @@ class TrainAgent:
     self.discount = discount
     self.model = DQN(state_dim, action_dim)
     self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+    self.load = False
+
+  
+    ### load model? --> check if this works
+    if (self.load):
+      checkpoint = torch.load('checkpoint.pth')
+      self.model.load_state_dict(checkpoint['model_state_dict'])
+      self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+      self.model.train()
+    ### 
 
   # need to check if this is correct!
   def qLearning(self, s, a, r, s_prime): # write to a csv file which will be used by another agent to properly play the game
@@ -202,13 +372,21 @@ class TrainAgent:
     loss = nn.MSELoss()(torch.tensor(target_f, dtype=torch.float32), self.model(torch.tensor(s, dtype=torch.float32)))
     
     loss.backward()
-    print("loss: " + str(loss))
+    print("loss: " + str(loss)) # graph loss
     self.optimizer.step()
+    # save model here?
 
+    checkpoint = {
+    'model_state_dict': self.model.state_dict(),
+    'optimizer_state_dict': self.optimizer.state_dict(),
+    'loss': loss,
+    }
+    torch.save(checkpoint, 'checkpoint.pth')
 
 state_dim = 152
 action_dim = 153 # all symbols plus "skip"
-agent = TrainAgent(state_dim, action_dim, lr=0.1, discount=0.9)
+agent = TrainAgent(state_dim, action_dim, lr=0.01, discount=0.9)
+
 
 def parseInventory(inventory):
   # read inventories into a dictionary
@@ -245,20 +423,44 @@ def parseInventory(inventory):
     number = int(number_str)
     # Add the number to the corresponding item in the defaultdict
     inventory_dict[item] += number
-  print("dict: " + str(inventory_dict))
+  #print("dict: " + str(inventory_dict))
   return inventory_dict
+
+def parseItem(added_item): #implement to clean up code more
+  if "Common" in added_item:
+    added_item = added_item[:added_item.index("Common")]
+  if "Uncommon" in added_item:
+    added_item = added_item[:added_item.index("Uncommon")]
+  if "Rare" in added_item:
+    added_item = added_item[:added_item.index("Rare")]
+  if "Super Rare" in added_item:
+    added_item = added_item[:added_item.index("Super Rare")]
+  
+  added_item = added_item.strip()
+  added_item = added_item.replace("-", " ")
+  added_item = added_item.replace(".", "")
+  added_item = added_item.replace("\n", " ")
+  added_item = added_item.replace("ñ", "n")
+  return added_item
 
 def playGame():
   global item_dict
+  global coin_dict
+  global action_dim
   pyautogui.PAUSE = 0.5
+  games_played = 0
+  epsilon = 0.5
 
   # start game
   status = ""
-
+  rounds = 0
   i = 0
   print("hello")
   added_item = ""
   while status != "Retry": # change this to main menu????
+
+    round += 1
+    print("rounds: " + str(round))
     added_item = ""
     pyautogui.press("i") # inventory
     inventory = pyperclip.paste()
@@ -273,14 +475,16 @@ def playGame():
       # update neural network here
       # call update function
       
-      print(s_prime)
+      #print(s_prime)
       # convert 
       
-      print("s: " + str(s))
-      print("a: " + str(a))
-      print("r: " + str(r))
-      print("s_prime: " + str(s_prime))
-      a = a.replace("\n", " ")
+      #print("s: " + str(s))
+      #print("a: " + str(a))
+      #print("r: " + str(r))
+      #print("s_prime: " + str(s_prime))
+      #a = a.replace("\n", " ")
+      #print(added_item)
+      #print(a)
       agent.qLearning(s, item_dict[a], r, s_prime)
         # pass to network haha
     s = s_prime
@@ -291,72 +495,84 @@ def playGame():
     # add a limit so that you are always carrying 21 items?
     pyautogui.press("space") # spin
     coins = pyperclip.paste()
+    r_prime = 0
     if i != 0: # skip first spin's reward
-      r = int(coins[len("Coin"):coins.index("\n")]) # reward for previous action
-      print(r)
+      total_r = int(coins[len("Coin"):coins.index("\n")]) # reward for previous action
+      r = total_r - r_prime
+      r_prime = total_r
       
-      print("CHOOSING2")
       
       pyautogui.press("down")
       added_item = pyperclip.paste()
-      print("added_item4: " + added_item)
+      #print("added_item4: " + added_item)
       if "\n" in added_item:
-        if "Common" in added_item:
-          added_item = added_item[:added_item.index("Common")]
-        elif "Uncommon" in added_item:
-          added_item = added_item[:added_item.index("Uncommon")]
-        elif "Rare" in added_item:
-          added_item = added_item[:added_item.index("Rare")]
-        elif "Super Rare" in added_item:
-          added_item = added_item[:added_item.index("Super Rare")]
-        print("added_item4: " + added_item)
-        added_item = added_item.strip()
-        added_item = added_item.replace("-", " ")
-        added_item = added_item.replace(".", "")
-        added_item = added_item.replace("\n", " ")
-        added_item = added_item.replace("ñ", "n")
+        added_item = parseItem(added_item)
         if added_item in item_dict.keys():
-          # change later to exploration strategy
-          pyautogui.press("left")
-          added_item = pyperclip.paste()
-          if "Common" in added_item:
-            added_item = added_item[:added_item.index("Common")]
-          elif "Uncommon" in added_item:
-            added_item = added_item[:added_item.index("Uncommon")]
-          elif "Rare" in added_item:
-            added_item = added_item[:added_item.index("Rare")]
-          elif "Super Rare" in added_item:
-            added_item = added_item[:added_item.index("Super Rare")]
-          print("added_item4: " + added_item)
-          added_item = added_item.strip()
-          added_item = added_item.replace("-", " ")
-          added_item = added_item.replace(".", "")
-          added_item = added_item.replace("\n", " ")
-          added_item = added_item.replace("ñ", "n")
-          a = added_item
-          pyautogui.press("1")
+          # need to look through all possible actions, and make sure to only pick those items...
+          # exploration strategy
+          # create a bit mask containing only 1s for possible actions
+         #bit_mask = [0 for _ in range(action_dim)] # action space length
+          #let action_1 = 
+          if np.random.rand() <= epsilon: # choose random acti0n half the time
+            rand = random.randint(1, 4)
+            if rand == 1:
+              pyautogui.press("s")
+              a = "Skip"
+            else:
+              """
+              pyautogui.press("left")
+              added_item = pyperclip.paste()
+              added_item = parseItem(added_item)
+              """
+              a = added_item
+              pyautogui.press("2")
+          else: # choose whichever symbol has the highest coin count
+            # look through all symbols
+            # left 
+            max_val = 0
+            best_item = ""
+            best_button = "1"
+            # find first instance of "Coin" and the number after that is how many coins
+            pyautogui.press("left")
+            item = pyperclip.paste()
+            item = parseItem(item)
+            coin = coin_dict[item]
+            if coin > max_val:
+              max_val = coin
+              best_item = item
+              best_button = "1"
+
+            pyautogui.press("right")
+            item = pyperclip.paste()
+            item = parseItem(item)
+            coin = coin_dict[item]
+            if coin > max_val:
+              max_val = coin
+              best_item = item
+              best_button = "2"
+            
+            pyautogui.press("right")
+            item = pyperclip.paste()
+            item = parseItem(item)
+            coin = coin_dict[item]
+            if coin > max_val:
+              max_val = coin
+              best_item = item
+              best_button = "3"
+
+            a = best_item
+            pyautogui.press(best_button)
 
         else:
           print("SKIPPING!")
           pyautogui.press("s") #skip
       ###
-      """
-      pyautogui.press("down")
-      pyautogui.press("left")
-      pyautogui.press("1")
-      added_item = pyperclip.paste()
-      
-      if "\n" in added_item:
-        added_item = added_item[:added_item.index("\n")]
-        
-        if added_item in item_dict.keys():
-          a = added_item
-      """
+  
        
 
     pyautogui.press("down")
     status = pyperclip.paste()
-    print("STATUS: " + status)
+    #print("STATUS: " + status)
     # need it to endthe game when it hits floor 10!!! replay the level!!!!
     # exit to main menu and play again?
     # unclear if this works yet
@@ -374,12 +590,17 @@ def playGame():
       pyautogui.press("left")
       pyautogui.press("up")
       pyautogui.press("enter")
+      games_played += 1
+      print("games played: " + str(games_played))
       
     while "Pay" in status or status == "Confirm" or status == "Main Menu" or status == "Skip":
       if status == "Main Menu":
         i = 0
-        pyautogui.press("up")
+        pyautogui.press("down")
+        pyautogui.press("up") # CHECK THIS
         pyautogui.press("enter")
+        games_played += 1
+        print("games played: " + str(games_played))
       else:
         pyautogui.press("enter") # pay money or retry
         pyautogui.press("enter") # click confirm
@@ -389,53 +610,82 @@ def playGame():
    
     while status != "SPIN" and status != "Retry":
       added_item = ""
-      print("CHOOSING")
+      #print("CHOOSING")
       pyautogui.press("left")
       added_item = pyperclip.paste()
-      print("aaaa: " + added_item)
+      
       # if "\n" in added_item:
+      #print(added_item)
       added_item = added_item[:added_item.index("\n")]
-      if "Common" in added_item:
-          added_item = added_item[:added_item.index("Common")]
-      elif "Uncommon" in added_item:
-        added_item = added_item[:added_item.index("Uncommon")]
-      elif "Rare" in added_item:
-        added_item = added_item[:added_item.index("Rare")]
-      elif "Super Rare" in added_item:
-        added_item = added_item[:added_item.index("Super Rare")]
-      print("added_item2: " + added_item)
-      print(added_item in item_dict.keys())
-     
-      added_item = added_item.strip()
-      added_item = added_item.replace("-", " ")
-      added_item = added_item.replace(".", "")
-      added_item = added_item.replace("\n", " ")
-      added_item = added_item.replace("ñ", "n")
+      added_item = parseItem(added_item)
 
       if added_item in item_dict.keys():
         # change later to exploration strategy
-        pyautogui.press("left")
-        added_item = pyperclip.paste()
-        #added_item = added_item[:added_item.index("\n")]
-        if "Common" in added_item:
-          added_item = added_item[:added_item.index("Common")]
-        elif "Uncommon" in added_item:
-          added_item = added_item[:added_item.index("Uncommon")]
-        elif "Rare" in added_item:
-          added_item = added_item[:added_item.index("Rare")]
-        elif "Super Rare" in added_item:
-          added_item = added_item[:added_item.index("Super Rare")]
-        
-        added_item = added_item.strip()
-        added_item = added_item.replace("-", " ")
-        added_item = added_item.replace(".", "")
-        added_item = added_item.replace("\n", " ")
-        added_item = added_item.replace("ñ", "n")
-        print("added_item4: " + added_item)
-        a = added_item
-        pyautogui.press("1")
+        # 25% chance of 
+        """
+        rand = random.randint(1, 4)
+         
+        if rand == 1:
+          pyautogui.press("s")
+          a = "Skip"
+        else:
+          pyautogui.press("left")
+          added_item = pyperclip.paste()
+          added_item = parseItem(added_item)
+          a = added_item
+          pyautogui.press("1")
+       """
+        if np.random.rand() <= epsilon: # choose random action half the time
+            rand = random.randint(1, 4)
+            if rand == 1:
+              pyautogui.press("s")
+              a = "Skip"
+            else:
+              """
+              pyautogui.press("left")
+              added_item = pyperclip.paste()
+              added_item = parseItem(added_item)
+              """
+              a = added_item
+              pyautogui.press("1")
+        else: # choose whichever symbol has the highest coin count
+          # look through all symbols
+          # left 
+          max_val = 0
+          best_item = ""
+          best_button = "1"
+          # find first instance of "Coin" and the number after that is how many coins
+          pyautogui.press("left")
+          item = pyperclip.paste()
+          item = parseItem(item)
+          coin = coin_dict[item]
+          if coin > max_val:
+            max_val = coin
+            best_item = item
+            best_button = "1"
+
+          pyautogui.press("right")
+          item = pyperclip.paste()
+          item = parseItem(item)
+          coin = coin_dict[item]
+          if coin > max_val:
+            max_val = coin
+            best_item = item
+            best_button = "2"
+          
+          pyautogui.press("right")
+          item = pyperclip.paste()
+          item = parseItem(item)
+          coin = coin_dict[item]
+          if coin > max_val:
+            max_val = coin
+            best_item = item
+            best_button = "3"
+
+          a = best_item
+          pyautogui.press(best_button)
       else:
-        print("SKIPPING!")
+        #print("SKIPPING!")
         pyautogui.press("s") #skip
 
       pyautogui.press("left") # check status????
@@ -444,6 +694,8 @@ def playGame():
 
 def main():
   playGame()
+  #test = parseItem("Item Capsule Uncommon Gives Coin 0  Destroys itself Adds  1")
+  #print(test)
   
 if __name__ == '__main__':
     main()
