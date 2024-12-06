@@ -137,7 +137,7 @@ def train():
   discount = 0.99
   model = DQN(state_dim, action_dim)
   optimizer = optim.Adam(model.parameters(), lr=lr)
-  load = False
+  load = True
   num_episodes = 2000
   batch_size = 32
   epsilon = 1

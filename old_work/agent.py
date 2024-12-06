@@ -351,7 +351,7 @@ class TrainAgent:
     self.discount = discount
     self.model = DQN(state_dim, action_dim)
     self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-    self.load = False
+    self.load = True
 
   
     ### load model? --> check if this works
@@ -433,8 +433,10 @@ def parseItem(added_item): #implement to clean up code more
     added_item = added_item[:added_item.index("Uncommon")]
   if "Rare" in added_item:
     added_item = added_item[:added_item.index("Rare")]
-  if "Super Rare" in added_item:
-    added_item = added_item[:added_item.index("Super Rare")]
+  if "Very" in added_item:
+    added_item = added_item[:added_item.index("Very")]
+  if "Very Rare" in added_item:
+    added_item = added_item[:added_item.index("Very Rare")]
   
   added_item = added_item.strip()
   added_item = added_item.replace("-", " ")
@@ -453,7 +455,7 @@ def playGame():
 
   # start game
   status = ""
-  rounds = 0
+  round = 0
   i = 0
   print("hello")
   added_item = ""
