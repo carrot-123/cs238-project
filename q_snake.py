@@ -1,9 +1,11 @@
 import time
 import random
+import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+
 import numpy as np
 # Screen dimensions
 WIDTH, HEIGHT = 400, 400
@@ -25,11 +27,11 @@ class DQN(nn.Module):
         self.layer3 = nn.Linear(128, action_dim)
 
     def forward(self, x):
-
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
         return self.layer3(x)
      
+  
 global snake_pos
 global snake_body
 global direction
@@ -59,7 +61,7 @@ def step(action, done):
 
   # Update direction
   direction = change_to
-  
+
   # Move the snake
   if direction == 'UP':
       snake_pos[1] -= BLOCK_SIZE
@@ -69,6 +71,7 @@ def step(action, done):
       snake_pos[0] -= BLOCK_SIZE
   if direction == 'RIGHT':
       snake_pos[0] += BLOCK_SIZE
+  
 
   # Snake growing mechanism: Add new head
   snake_body.insert(0, list(snake_pos))
@@ -77,7 +80,7 @@ def step(action, done):
   if snake_pos[0] == food_pos[0] and snake_pos[1] == food_pos[1]:
       reward = 10
       food_spawn = False
-      print("here")
+     
   else:
       # Remove the last segment if no food eaten
       snake_body.pop()
@@ -111,7 +114,7 @@ def step(action, done):
   
   return next_state, reward, done
 
-def train():
+def play():
   global snake_pos
   global snake_body
   global direction
@@ -119,30 +122,16 @@ def train():
   global change_to
   global food_spawn
 
-  experience_replay = []
-  state_dim = 12
-  action_dim = 4
-  lr = 0.0001
-  discount = 0.99
-  model = DQN(state_dim, action_dim)
-  optimizer = optim.Adam(model.parameters(), lr=lr)
-  load = True
-  num_episodes = 2000
-  batch_size = 32
-  epsilon = 1
-  
-  # load model
-  if (load):
-    checkpoint = torch.load('snake.pth')
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    model.train()
+  model = DQN(12, 4)
+  model.load_state_dict(torch.load("snake.pth", weights_only=True))
+  model.eval()
+  num_episodes = 100
 
   scores = []
-  for episode in range(num_episodes):
+  for episode in tqdm.tqdm(range(num_episodes)):
    
-    snake_pos = [200, 200]
-    snake_body = [[200, 200]]
+    snake_pos = [220, 220]
+    snake_body = [[220, 220]]
 
     # Direction variables
     direction = 'RIGHT'
@@ -150,6 +139,7 @@ def train():
 
     # Initial score
     score = 0
+    count = 0
 
     # Food position
     while True:
@@ -166,45 +156,26 @@ def train():
     state = get_state(snake_pos, snake_body, direction, food_pos)
     done = False
     while not done:
-        # exploration vs exploitation
-        if np.random.rand() <= epsilon:
-          action = random.randint(0, 3)
-        else:
-          action = torch.argmax(model(torch.tensor(state, dtype=torch.float32))).item()  # Choose action based on Q-values
-       
-        next_state, reward, done = step(action, done)  # Take the action and get the new state
-        experience_replay.append((state, action, reward, next_state, done))  # Store in memory
-        score += reward
-        # Train the model using experience replay
-        if len(experience_replay) > batch_size:
-            minibatch = random.sample(experience_replay, batch_size)
-            check = 0
-            for s, a, r, next_s, d in minibatch:
-              target = r
-              check += 1
-              if not d:
-                target = r + discount * torch.max(model(torch.tensor(next_s, dtype=torch.float32))).item()
-              target_f = model(torch.tensor(s, dtype=torch.float32)).detach().numpy()
-              target_f[a] = target
-
-              optimizer.zero_grad()
-              loss = nn.MSELoss()(torch.tensor(target_f), model(torch.tensor(s, dtype=torch.float32)))
-              loss.backward()
-              torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-              optimizer.step()
+      count += 1
+      if (count > 1000): # prevent infinite loop
+        done = True
+        break
+        
+      action = torch.argmax(model(torch.tensor(state, dtype=torch.float32))).item()  # Choose action based on Q-values
+      state, reward, done = step(action, done)  # Take the action and get the new state
+      if reward == 10:
+        count = 0
+      score += reward
       
-              state = next_state  # Move to the new state
-             
-        if epsilon > 0.01:
-          epsilon *= 0.999
-       
+        
     scores.append(score)
-    print(f"SCORE: {np.mean(scores)}")
-  torch.save(model.state_dict(), "snake.pth")
-    
-      
+  np.savetxt("scores.txt", np.array(scores, dtype=int))
+  print("mean score: " + str(np.mean(scores)))
+  print("median score: " + str(np.median(scores)))
+  print("min score: " + str(np.min(scores)))
+  print("max score: " + str(np.max(scores)))
 
-#State, Action, and Reward 
+### State, Action, and Reward ###
 def is_obstacle(snake_pos, snake_body):
   x, y = snake_pos
 
@@ -219,7 +190,7 @@ def is_obstacle(snake_pos, snake_body):
 
   return 0
 
-# State: snake position (x, y), food_position (x, y), obstacles (up, down, left, right)
+### State: snake position (x, y), food_position (x, y), obstacles (up, down, left, right)
 def get_state(snake_pos, snake_body, direction, food_pos):
   actions = ["UP", "DOWN", "LEFT", "RIGHT"]
   snake_x = snake_pos[0]
@@ -252,6 +223,6 @@ def get_state(snake_pos, snake_body, direction, food_pos):
   return np.array(state, dtype=int)
 
 if __name__ == "__main__":
-    train()
+    play()
 
 

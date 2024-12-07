@@ -1,4 +1,3 @@
-
 import pygame
 import time
 import random
@@ -7,21 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
 import numpy as np
-
-class DQN(nn.Module):
-    def __init__(self, state_dim, action_dim):
-        super(DQN, self).__init__()
-        self.layer1 = nn.Linear(state_dim, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, action_dim)
-
-    def forward(self, x):
-
-        x = F.relu(self.layer1(x))
-        x = F.relu(self.layer2(x))
-        return self.layer3(x)
 
 # press game to replay
 
@@ -55,8 +40,6 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("bahnschrift", 25)
 game_over_font = pygame.font.SysFont("bahnschrift", 40)
 
-
-
 def show_score(score):
     """Displays the current score on the screen."""
     value = font.render(f"Score: {score}", True, WHITE)
@@ -68,17 +51,12 @@ def game_over_message():
     screen.blit(message, [WIDTH // 6, HEIGHT // 2])
 
 def game_loop():
-    # load in model
-    model = DQN(12, 4)
-    model.load_state_dict(torch.load("snake.pth", weights_only=True))
-    model.eval()
+    
     time.sleep(5)
-    # add manual delay here later
-
-    pyautogui.PAUSE = 0.25
+    #pyautogui.PAUSE = 0.25
 
     scores = []
-    steps = []
+   
     
     # play 100 games, track the average reward and the average time elapsed
     for episode in range(100):
@@ -93,8 +71,7 @@ def game_loop():
         # Initial score
         score = 0
 
-        # Intial steps
-        step = 0
+      
 
         # Food position
         while True:
@@ -108,17 +85,13 @@ def game_loop():
             if food_pos not in snake_body:
                 break
         food_spawn = True
-       
         done = False
         actions = ["UP", "DOWN", "LEFT", "RIGHT"]
-        state = get_state(snake_pos, snake_body, direction, food_pos)
         while not done:
-            action = torch.argmax(model(torch.tensor(state, dtype=torch.float32))).item()
-            print(action)
+            action = greedy_move(snake_pos, snake_body, food_pos)
             button = actions[action]
             pyautogui.press(button)
-            step += 1
-
+          
             # Event handling
             for event in pygame.event.get():
                 
@@ -171,8 +144,6 @@ def game_loop():
                         break
             food_spawn = True
 
-            state = get_state(snake_pos, snake_body, direction, food_pos)
-
             # Game over conditions: Wall collision or self-collision
             if (
                 snake_pos[0] < 0 or snake_pos[0] >= WIDTH or
@@ -203,16 +174,12 @@ def game_loop():
             # Control the game speed
             #clock.tick(FPS)
         scores.append(score)
-        steps.append(step)
+       
     print("mean score: " + str(np.mean(scores)))
     print("median score: " + str(np.median(scores)))
     print("min score: " + str(np.min(scores)))
-    print("max score: " = str(np.max(scores)))
-    print("----------")
-    print("mean score: " + str(np.mean(scores)))
-    print("median score: " + str(np.median(scores)))
-    print("min score: " + str(np.min(scores)))
-    print("max score: " = str(np.max(scores)))
+    print("max score: " + str(np.max(scores)))
+  
 
     while True:
         screen.fill(BLACK)
@@ -227,7 +194,47 @@ def game_loop():
             if event.type == pygame.KEYDOWN:
               return  # Restart the game loop
 
-### State, Action, and Reward ###
+
+
+
+# Helper function to calculate Manhattan distance
+def manhattan_distance(pos1, pos2):
+    return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+
+
+
+# Greedy algorithm to choose the next move
+def greedy_move(snake_pos, snake_body, food):
+  UP = (0, -1)
+  DOWN = (0, 1)
+  LEFT = (-1, 0)
+  RIGHT = (1, 0)
+
+  DIRECTIONS = [UP, DOWN, LEFT, RIGHT]
+  
+  head = snake_pos
+  best_move = 0
+  min_distance = float('inf')
+
+  for i in range(len(DIRECTIONS)):
+      direction = DIRECTIONS[i]
+      # Calculate new head position
+      new_head = (head[0] + direction[0], head[1] + direction[1])
+      
+      # Check if the move is valid
+      #[snake_x, snake_y - BLOCK_SIZE], snake_body)
+      if is_obstacle(new_head, snake_body) == 0:
+          # Calculate distance to the food
+          distance = manhattan_distance(new_head, food)
+          if distance < min_distance:
+              min_distance = distance
+              # best_move = new_head
+              best_move = i
+
+  return best_move
+
+
+### 1 if is_obstacle, 0 if not (if valid move)
 def is_obstacle(snake_pos, snake_body):
   x, y = snake_pos
 
@@ -242,60 +249,6 @@ def is_obstacle(snake_pos, snake_body):
 
   return 0
 
-### State: snake position (x, y), food_position (x, y), obstacles (up, down, left, right)
-def get_state(snake_pos, snake_body, direction, food_pos):
-  """
-  actions = ["UP", "DOWN", "LEFT", "RIGHT"]
-  snake_x = snake_pos[0]
-  snake_y = snake_pos[1]
-  
-  food_x = food_pos[0]
-  food_y = food_pos[1]
-  
-  obstacle_up = is_obstacle([snake_x, snake_y - BLOCK_SIZE], snake_body)
-  obstacle_down = is_obstacle([snake_x, snake_y + BLOCK_SIZE], snake_body)
-  obstacle_left = is_obstacle([snake_x - BLOCK_SIZE, snake_y], snake_body)
-  obstacle_right = is_obstacle([snake_x + BLOCK_SIZE, snake_y], snake_body)
-  direction_int = actions.index(direction)
-  return [snake_x, snake_y, food_x, food_y, direction_int, obstacle_up, obstacle_down, obstacle_left, obstacle_right]
-  """
-  actions = ["UP", "DOWN", "LEFT", "RIGHT"]
-  snake_x = snake_pos[0]
-  snake_y = snake_pos[1]
-  
-  food_x = food_pos[0]
-  food_y = food_pos[1]
-
-  block_up = [snake_x, snake_y - BLOCK_SIZE]
-  block_down = [snake_x, snake_y + BLOCK_SIZE]
-  block_left = [snake_x - BLOCK_SIZE, snake_y]
-  block_right = [snake_x + BLOCK_SIZE, snake_y]
-
-  dir_up = direction == "UP"
-  dir_down = direction == "DOWN"
-  dir_left = direction == "LEFT"
-  dir_right = direction == "RIGHT"
-  
-  # obstacle relative to snake move direction
-  obstacle_straight = (dir_up and is_obstacle(block_up, snake_body)) or (dir_left and is_obstacle(block_left, snake_body)) or (dir_right and is_obstacle(block_right, snake_body)) or (dir_down and is_obstacle(block_down, snake_body))
-  obstacle_left = (dir_up and is_obstacle(block_left, snake_body)) or (dir_left and is_obstacle(block_down, snake_body)) or (dir_right and is_obstacle(block_up, snake_body)) or (dir_down and is_obstacle(block_right, snake_body))
-  obstacle_right = (dir_up and is_obstacle(block_right, snake_body)) or (dir_left and is_obstacle(block_up, snake_body)) or (dir_right and is_obstacle(block_down, snake_body)) or (dir_down and is_obstacle(block_left, snake_body))
-  
-  obstacle_up = is_obstacle(block_up, snake_body)
-  obstacle_down = is_obstacle(block_down, snake_body)
-  obstacle_left = is_obstacle(block_left, snake_body)
-  obstacle_right = is_obstacle(block_right, snake_body)
-
-
-  food_up = food_y < snake_y
-  food_down = food_y > snake_y
-  food_left = food_x < snake_x
-  food_right = food_x > snake_x
-  state = [obstacle_up, obstacle_down, obstacle_left, obstacle_right, dir_up, dir_down, dir_left, dir_right, food_up, food_down, food_left, food_right]
-  #print([obstacle_straight, obstacle_left, obstacle_right, dir_up, dir_down, dir_left, dir_right, food_up, food_down, food_left, food_right])
-  #print(np.array(state, dtype=int))
-  return np.array(state, dtype=int)
-
 if __name__ == "__main__":
-    game_loop()  # Restart the game when the loop ends
+    game_loop()  
 
